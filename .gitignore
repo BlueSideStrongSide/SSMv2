@@ -1,0 +1,3 @@
+# created by virtualenv automatically
+config/notifications/*
+/src/logs/hg_logmonitor.log
