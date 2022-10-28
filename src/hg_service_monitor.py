@@ -89,6 +89,8 @@ class HGServiceMonitor:
             self.enabled_targets.append(building_targets)
 
         self.logger.info(f"Enabled Targets: {self.enabled_targets}")
+
+        # Alert on startup
         await self.pushover_notifier._send_alert(f"Enabled Targets: {self.enabled_targets}")
 
         return self.enabled_targets
@@ -100,8 +102,10 @@ class HGServiceMonitor:
         for target in self.enabled_targets:
             if target['service'] == "ICMP":
 
+                # only pass _target_options and parse the values within the service monitor
                 service_dispatcher.append(HGPingServiceMonitor(target=target['target'],
                                                                interval=float(target['interval']),
+                                                               _target_options = target,
                                                                _results_tracker=self._ssm_result,
                                                                internal_logger=self.logger).ping_target())
 
@@ -109,8 +113,9 @@ class HGServiceMonitor:
 
                 service_dispatcher.append(HGHttpServiceMonitor(target=target['target'],
                                                                interval=float(target['interval']),
-                                                               port=target['port'],
+                                                               port=target.get('port'),
                                                                service=target['service'],
+                                                               _target_options=target,
                                                                _results_tracker=self._ssm_result,
                                                                internal_logger=self.logger).get_target())
 
@@ -118,9 +123,10 @@ class HGServiceMonitor:
         while self.enabled_targets:
             res = await asyncio.gather(*service_dispatcher, return_exceptions=True)
             # add a check to remove monitor items... hardlinks on async task may help remove them
-            # if res:
+            # excpetions should be returned and remove the target from the list
+            if res:
                 # need to sort through errors
-                # print(res)
+                print(res)
 
         # while self.enabled_targets:
         #     for coro in asyncio.as_completed(service_dispatcher):

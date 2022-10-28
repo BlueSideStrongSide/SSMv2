@@ -5,9 +5,16 @@ from src.notifications.pushover.notifications import PUSHOVER as pushover_notifi
 from datetime import datetime
 
 
-
+#move to **kwargs
 class HGHttpServiceMonitor:
-    def __init__(self, target, interval=5, count=1, port=None, service=None, _results_tracker=None, internal_logger=None):
+    def __init__(self, target,
+                 interval=5,
+                 count=1,
+                 port=None,
+                 service=None,
+                 _results_tracker=None,
+                 _target_options=None,
+                 internal_logger=None):
         """
         Class handler for the HTTP service monitor
 
@@ -20,14 +27,16 @@ class HGHttpServiceMonitor:
         :param internal_logger: Class access to store log files
         """
         self._target = target
+        self._target_options = _target_options
         self._port = port or 443
         self._service = service or "HTTP"
         self._interval = interval
-        self._count = count
         self._timeout = 60
         self._privileged = False
-        self._results_tracker = _results_tracker
+        self._failure_counter = int(self._target_options['failure_count'])
         self._internal_logger = internal_logger
+        self._http_results_tracker = []
+        self._results_tracker = _results_tracker  # <-- Class result to implement later
         self.pushover_notifier = pushover_notifications()
 
     @property
@@ -42,6 +51,14 @@ class HGHttpServiceMonitor:
     def fail_char(self):
         return u'\u274C'
 
+    @property
+    def dispatch_alert_conditions_met(self):
+        if len(self._http_results_tracker) >= self._failure_counter:
+            self._http_results_tracker = []
+            return True
+        return False
+
+
     async def get_target(self):
         _internal_count = 0
 
@@ -49,7 +66,9 @@ class HGHttpServiceMonitor:
             while True:
                 try:
                     latency_check = time.time()
-                    async with session.get(self.format_url) as response:
+                    async with session.get(self.format_url,timeout=2) as response:
+
+                        # convert latency to seconds
                         duration = (time.time() - latency_check) * 1000
                         self._internal_logger.info(f'{self.success_char} {self.format_url} --> Status:{response.status} --> Duration:{duration:.2f}ms')
 
@@ -57,9 +76,13 @@ class HGHttpServiceMonitor:
                 except Exception as e:
                     error_message = f'{self.fail_char} {self.format_url} --> {e} --> Failed To Connect'
                     self._internal_logger.info(error_message)
-                    await self.pushover_notifier._send_alert(message=error_message)
+                    self._http_results_tracker.append(error_message)
 
-                _internal_count += 1
+                    if self.dispatch_alert_conditions_met: # we need to check our property which should track alongside our failures
+                        await self.pushover_notifier._send_alert(message=error_message)
+
+                _internal_count += 1 # <-- decide if we want to keep this currently not used
+
                 await asyncio.sleep(self._interval)
 
 
