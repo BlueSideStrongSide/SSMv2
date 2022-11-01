@@ -51,7 +51,7 @@ class HGServiceMonitor:
         
         requested_log_file = Path(self.output_log)
         if not requested_log_file.is_file():
-            Path(self.output_log).mkdir(parents=True, exist_ok=True)
+            Path(requested_log_file.parent).mkdir(parents=True)
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
 
 

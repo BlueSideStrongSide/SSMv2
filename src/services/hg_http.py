@@ -78,7 +78,7 @@ class HGHttpServiceMonitor:
                     self._internal_logger.info(error_message)
                     self._http_results_tracker.append(error_message)
 
-                    if self.dispatch_alert_conditions_met: # we need to check our property which should track alongside our failures
+                    if self.dispatch_alert_conditions_met:
                         await self.pushover_notifier._send_alert(message=error_message)
 
                 _internal_count += 1 # <-- decide if we want to keep this currently not used
