@@ -1,6 +1,6 @@
 #Dockerfile, Image, Container
 
-FROM python:3.9
+FROM python:3-buster
 
 COPY sample_script.py .
 COPY config ./
