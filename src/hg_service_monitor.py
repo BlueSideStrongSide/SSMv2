@@ -1,6 +1,7 @@
 import logging
 import configparser
 import asyncio
+from pathlib import Path
 from src.services.hg_ping import HGPingServiceMonitor
 from src.services.hg_http import HGHttpServiceMonitor
 from src.util.result_handler import HGResultHandler
@@ -47,6 +48,10 @@ class HGServiceMonitor:
 
         # create console handler and set level to debug
         console_h = logging.StreamHandler()
+        
+        requested_log_file = Path(self.output_log)
+        if not requested_log_file.is_file():
+            Path(self.output_log).mkdir(parents=True, exist_ok=True)
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
 
 
