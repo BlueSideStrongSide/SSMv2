@@ -16,7 +16,7 @@ Run With Docker --> `docker build -t ssmv2 .` --> `docker run`
 
 ### Notifiers
 
-A table of the currently supported notifiers is shown below, generate the appropriate API settings, and add them to the configuration file.
+A table of the currently supported notifiers is shown below, please generate the appropriate API settings, and add them to the configuration file.
 
  | API      | API Settings                    | Supported |
 |----------|---------------------------------|:---------:|
