@@ -1,11 +1,11 @@
 import asyncio
 import time
 import aiohttp
-from src.notifications.pushover.notifications import PUSHOVER as pushover_notifications
+from src.notifications.pushover.notifications import PushOver as push_notify
 from datetime import datetime
 
 
-#move to **kwargs
+# move to **kwargs
 class HGHttpServiceMonitor:
     def __init__(self, target,
                  interval=5,
@@ -32,12 +32,15 @@ class HGHttpServiceMonitor:
         self._service = service or "HTTP"
         self._interval = interval
         self._timeout = 60
-        self._privileged = False
+        self._alert_enabled = self._target_options['alert'] or False
         self._failure_counter = int(self._target_options['failure_count'])
+        self._privileged = False
+
         self._internal_logger = internal_logger
         self._http_results_tracker = []
         self._results_tracker = _results_tracker  # <-- Class result to implement later
-        self.pushover_notifier = pushover_notifications()
+
+        self.pushover_notifier = push_notify()
 
     @property
     def format_url(self):
@@ -53,11 +56,10 @@ class HGHttpServiceMonitor:
 
     @property
     def dispatch_alert_conditions_met(self):
-        if len(self._http_results_tracker) >= self._failure_counter:
+        if len(self._http_results_tracker) >= self._failure_counter and self._alert_enabled:
             self._http_results_tracker = []
             return True
         return False
-
 
     async def get_target(self):
         _internal_count = 0
@@ -66,30 +68,30 @@ class HGHttpServiceMonitor:
             while True:
                 try:
                     latency_check = time.time()
-                    async with session.get(self.format_url,timeout=2) as response:
+                    async with session.get(self.format_url, timeout=2) as response:
 
                         # convert latency to seconds
                         duration = (time.time() - latency_check) * 1000
-                        self._internal_logger.info(f'{self.success_char} {self.format_url} --> Status:{response.status} --> Duration:{duration:.2f}ms')
+                        self._internal_logger.info(
+                            f'{self.success_char} {self.format_url} --> Status:{response.status} --> Duration:{duration:.2f}ms')
 
                 # Limit exception captures
                 except Exception as e:
                     error_message = f'{self.fail_char} {self.format_url} --> {e} --> Failed To Connect'
+
                     self._internal_logger.info(error_message)
                     self._http_results_tracker.append(error_message)
 
-                    if self.dispatch_alert_conditions_met:
-                        await self.pushover_notifier._send_alert(message=error_message)
+                    if self.dispatch_alert_conditions_met and self._target_options["ALERT"].lower() == "true":
+                        await self.pushover_notifier.send_alert(message=error_message)
 
-                _internal_count += 1 # <-- decide if we want to keep this currently not used
+                _internal_count += 1  # <-- decide if we want to keep this currently not used
 
-                await asyncio.sleep(self._interval)
+                for i in range(1, int(self._interval)):
+                    await asyncio.sleep(1)
 
-
-    async def is_alive(address):
-        host = await async_ping(address, count=10, interval=0.2)
-        print(host)
 
 if __name__ == '__main__':
-    target= {'target': 'raspberrypi', 'service': 'HTTP', 'port': '3000', 'interval': '30', 'alert': 'TRUE'}
-    asyncio.run(HGHttpServiceMonitor(target=target['target'], interval=int(target['interval']), port=target['port'], service=target['service']).get_target())
+    target_test = {'target': 'raspberrypi', 'service': 'HTTP', 'port': '3000', 'interval': '30', 'alert': 'TRUE'}
+    asyncio.run(HGHttpServiceMonitor(target=target_test['target'], interval=int(target_test['interval']), port=target_test['port'],
+                                     service=target_test['service']).get_target())

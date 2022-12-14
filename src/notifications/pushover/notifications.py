@@ -2,10 +2,9 @@ import asyncio
 import aiohttp
 import configparser
 from pathlib import Path, PurePath
-# from config.notifications.puhsover import config as pushover_config
 
 
-class PUSHOVER:
+class PushOver:
 
     def __init__(self):
         self.token_api_key = None
@@ -17,12 +16,11 @@ class PUSHOVER:
         self.configuration_parser = configparser.ConfigParser(strict=False)
         self._read_config()
 
-
     def _read_config(self):
 
         root = Path(__file__).parents[3]
         child = Path("config/notifications/pushover/config.ini")
-        config_path = PurePath(root,child)
+        config_path = PurePath(root, child)
 
         try:
             self.targets_configuration = self.configuration_parser.read(config_path)
@@ -33,7 +31,7 @@ class PUSHOVER:
             print(f'{config_path} {e}')
             exit()
 
-    async def _send_alert(self, message=None):
+    async def send_alert(self, message=None):
 
         self.params = {'token': self.pushover_token_api_key, 'user': self.pushover_user_api_key, 'message': message}
 
@@ -44,4 +42,4 @@ class PUSHOVER:
 
 if __name__ == '__main__':
     test = PUSHOVER()
-    asyncio.get_event_loop().run_until_complete(test._send_alert())
+    asyncio.get_event_loop().run_until_complete(test.send_alert())

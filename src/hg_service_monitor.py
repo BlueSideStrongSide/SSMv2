@@ -5,20 +5,34 @@ from pathlib import Path
 from src.services.hg_ping import HGPingServiceMonitor
 from src.services.hg_http import HGHttpServiceMonitor
 from src.util.result_handler import HGResultHandler
-from src.notifications.pushover.notifications import PUSHOVER as pushover_notifications
+from src.notifications.pushover.notifications import PushOver as push_notify
+
 
 class HGServiceMonitor:
 
-    def __init__(self, targets_config=None, output_log=None):
+    def __init__(self,
+                 targets_config: str = "config/targets/targets.ini",
+                 output_log: str = "src/logs/hg_logmonitor.log",
+                 notify_status: bool = True):
+        """
+
+        :param targets_config Specify the full path to the configuration file
+        :param output_log Specify the full path to the output log file
+        :param notify_status:bool  Should the service monitor send notifications during startup
+        """
+        self.notify_status = notify_status
+
+        self.targets_configuration = None
         self.logger = None
         self.targets = None
-        self.enabled_targets = []
         self.disabled_targets = None
-        self.pushover_notifier = pushover_notifications()
+        self.enabled_targets = []
+
+        self.pushover_notifier = push_notify()
         self._ssm_result = HGResultHandler()
 
-        self.targets_config_file = targets_config or "config/targets/targets.ini"  # <-- make cross platform ready
-        self.output_log = output_log or "src/logs/hg_logmonitor.log"
+        self.targets_config_file = targets_config  # <-- make cross platform ready
+        self.output_log = output_log
         self.configuration_parser = configparser.ConfigParser(strict=False)
 
     def enable_service_monitor(self):
@@ -31,7 +45,7 @@ class HGServiceMonitor:
 
         res = await asyncio.gather(*launch_routines, return_exceptions=True)
 
-        if not res == [None]: # <-- script failed to startup
+        if not res == [None]:  # <-- script failed to startup
             await self.failed_startup(fail_reason=res)
 
         await self.add_monitor_targets()
@@ -48,12 +62,11 @@ class HGServiceMonitor:
 
         # create console handler and set level to debug
         console_h = logging.StreamHandler()
-        
+
         requested_log_file = Path(self.output_log)
         if not requested_log_file.is_file():
             Path(requested_log_file.parent).mkdir(parents=True)
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
-
 
         # provide option to set console loggin from configuration file
         console_h.setLevel(logging.DEBUG)
@@ -70,7 +83,7 @@ class HGServiceMonitor:
         self.logger.addHandler(console_h)
         self.logger.addHandler(file_h)
 
-        #log message
+        # log message
         self.logger.info("HGServiceMonitor is online and looking for targets.")
 
     async def read_config(self, configuration="config/targets/targets.ini"):
@@ -87,30 +100,41 @@ class HGServiceMonitor:
     async def add_monitor_targets(self, targets_config=None):
 
         for host in self.configuration_parser.sections():
-            building_targets = {}
-            building_targets["target"] = host
+            building_targets = {"target": host}
             for key, value in self.configuration_parser[host].items():
+                if key in ["alert"]:
+                    if value.lower() == "true":
+                        value = True
+                    else:
+                        value = False
                 building_targets[key] = value
+
             self.enabled_targets.append(building_targets)
 
         self.logger.info(f"Enabled Targets: {self.enabled_targets}")
 
         # Alert on startup
-        await self.pushover_notifier._send_alert(f"Enabled Targets: {self.enabled_targets}")
+        if self.notify_status:
+            await self.pushover_notifier.send_alert(f"Enabled Targets: {self.enabled_targets}")
 
         return self.enabled_targets
 
     async def _monitor_target(self):
-        self.logger.info(f"HGServiceMonitor is starting attemtping to monitor {len(self.enabled_targets)} target(s).")
-        await self.pushover_notifier._send_alert(message=f"HGServiceMonitor is starting attemtping to monitor {len(self.enabled_targets)} target(s).")
+        self.logger.info(f"HGServiceMonitor is starting attempting to monitor {len(self.enabled_targets)} target(s).")
+
+        if self.notify_status:
+            await self.pushover_notifier.send_alert(
+                message=f"HGServiceMonitor is starting attempting to monitor {len(self.enabled_targets)} target(s).")
+
         service_dispatcher = []
         for target in self.enabled_targets:
+
             if target['service'] == "ICMP":
 
                 # only pass _target_options and parse the values within the service monitor
                 service_dispatcher.append(HGPingServiceMonitor(target=target['target'],
                                                                interval=float(target['interval']),
-                                                               _target_options = target,
+                                                               _target_options=target,
                                                                _results_tracker=self._ssm_result,
                                                                internal_logger=self.logger).ping_target())
 
@@ -124,11 +148,10 @@ class HGServiceMonitor:
                                                                _results_tracker=self._ssm_result,
                                                                internal_logger=self.logger).get_target())
 
-
         while self.enabled_targets:
             res = await asyncio.gather(*service_dispatcher, return_exceptions=True)
             # add a check to remove monitor items... hardlinks on async task may help remove them
-            # excpetions should be returned and remove the target from the list
+            # exceptions should be returned and remove the target from the list
             if res:
                 # need to sort through errors
                 print(res)
@@ -138,16 +161,17 @@ class HGServiceMonitor:
         #         earliest_result= await coro
         #         print(earliest_result)
 
-    async def remove_monitor_target(self):
-        loop_count = 1
-        while self.enabled_targets:
-            random_sleep = random.randint(1, 5)
-            self.logger.info(f"HGServiceMonitor is online and removing {loop_count} target(s).")
-            await asyncio.sleep(random_sleep)
-            loop_count += random.randint(1, 5)
+    # async def remove_monitor_target(self):
+    #     loop_count = 1
+    #     while self.enabled_targets:
+    #         random_sleep = random.randint(1, 5)
+    #         self.logger.info(f"HGServiceMonitor is online and removing {loop_count} target(s).")
+    #         await asyncio.sleep(random_sleep)
+    #         loop_count += random.randint(1, 5)
 
     async def close_monitor_target(self):
         pass
+
 
 if __name__ == 'main':
     test = HGServiceMonitor()
