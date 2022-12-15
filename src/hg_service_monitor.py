@@ -155,6 +155,7 @@ class HGServiceMonitor:
             if res:
                 # need to sort through errors
                 print(res)
+                break
 
         # while self.enabled_targets:
         #     for coro in asyncio.as_completed(service_dispatcher):

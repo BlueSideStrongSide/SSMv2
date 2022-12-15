@@ -1,6 +1,7 @@
 import asyncio
 import time
 import aiohttp
+import json
 from src.notifications.pushover.notifications import PushOver as push_notify
 from datetime import datetime
 
@@ -26,18 +27,25 @@ class HGHttpServiceMonitor:
         :param _results_tracker: Class access to store and retrieve results
         :param internal_logger: Class access to store log files
         """
+
+        # service options
         self._target = target
         self._target_options = _target_options
-        self._port = port or 443
-        self._service = service or "HTTP"
         self._interval = interval
+        self._service = service or "HTTP"
+        self._port = port or 443
         self._timeout = 60
+
+        # configuration options
         self._alert_enabled = self._target_options['alert'] or False
         self._failure_counter = int(self._target_options['failure_count'])
-        self._privileged = False
+        self._ms_check = self._target_options['ms_check'] or False  # <-- update data type to bool
+        self._ms_calc = self._target_options['ms_calc'].lower() or "gt"
+        self._ms_value = int(self._target_options['ms_value']) or 0
 
         self._internal_logger = internal_logger
-        self._http_results_tracker = []
+        self._http_results_run_tracker = {"success": [], "fail": []}
+        self._http_results_fail_tracker = []
         self._results_tracker = _results_tracker  # <-- Class result to implement later
 
         self.pushover_notifier = push_notify()
@@ -55,16 +63,16 @@ class HGHttpServiceMonitor:
         return u'\u274C'
 
     @property
-    def dispatch_alert_conditions_met(self):
-        if len(self._http_results_tracker) >= self._failure_counter and self._alert_enabled:
-            self._http_results_tracker = []
+    def dispatch_alert_conditions_met(self, immediate: bool = False):
+        if (len(self._http_results_run_tracker["fail"]) >= self._failure_counter) and self._alert_enabled:
+            self._failure_counter = self._failure_counter + int(self._target_options['failure_count'])
             return True
         return False
 
     async def get_target(self):
         _internal_count = 0
 
-        async  with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             while True:
                 try:
                     latency_check = time.time()
@@ -72,17 +80,57 @@ class HGHttpServiceMonitor:
 
                         # convert latency to seconds
                         duration = (time.time() - latency_check) * 1000
-                        self._internal_logger.info(
-                            f'{self.success_char} {self.format_url} --> Status:{response.status} --> Duration:{duration:.2f}ms')
+
+                        status_message = f'{self.success_char} {self.format_url} --> Status:{response.status} --> Duration:{duration:.2f}ms'
+
+                        self._http_results_run_tracker["success"].append({"url": self.format_url,
+                                                                          "status_code": response.status,
+                                                                          "duration": duration,
+                                                                          "duration_normalized": int(duration),
+                                                                          })
+                        self._internal_logger.info(status_message)
 
                 # Limit exception captures
                 except Exception as e:
                     error_message = f'{self.fail_char} {self.format_url} --> {e} --> Failed To Connect'
 
                     self._internal_logger.info(error_message)
-                    self._http_results_tracker.append(error_message)
+                    await asyncio.sleep(0)
 
-                    if self.dispatch_alert_conditions_met and self._target_options["ALERT"].lower() == "true":
+                    self._http_results_run_tracker["fail"].append({"url": self.format_url,
+                                                                   "status": error_message,
+                                                                   "specific_error": e
+                                                                   })
+
+                    if self.dispatch_alert_conditions_met:
+                        await self.pushover_notifier.send_alert(message=error_message)
+
+                # latency check v1 currently as conditions are met they will be dispatched
+                if self._ms_check.lower() == 'true':
+                    error_message = ""
+
+                    # average over the last 10 items processed
+                    if self._ms_calc == 'avg' and len(self._http_results_run_tracker["success"]) >= 3:
+
+                        # get the most recent three items this will be dynamic later
+                        recent_items = self._http_results_run_tracker["success"][-3:]
+                        calculated_latency = [latency["duration_normalized"] for latency in recent_items]
+
+                        latency_average = sum(calculated_latency) // len(calculated_latency)
+                        if latency_average > self._ms_value:
+                            error_message = f'{self.fail_char} {self.format_url} --> {duration:.2f} --> observed latency average higher than expected {self._ms_value}'
+
+                    # specified value is less than returned
+                    if self._ms_calc == 'lt' and self._ms_value > int(duration):
+                        error_message = f'{self.fail_char} {self.format_url} --> {duration:.2f} --> observed latency lower than expected {self._ms_value}'
+
+                    # specified value is greater than returned
+                    if self._ms_calc == 'gt' and (self._ms_value < int(duration)):
+                        error_message = f'{self.fail_char} {self.format_url} --> Duration: {duration:.2f} observed latency higher than expected value --> {self._ms_value}'
+
+                    if error_message:
+                        self._internal_logger.info(error_message)
+                        await asyncio.sleep(0)
                         await self.pushover_notifier.send_alert(message=error_message)
 
                 _internal_count += 1  # <-- decide if we want to keep this currently not used
@@ -93,5 +141,6 @@ class HGHttpServiceMonitor:
 
 if __name__ == '__main__':
     target_test = {'target': 'raspberrypi', 'service': 'HTTP', 'port': '3000', 'interval': '30', 'alert': 'TRUE'}
-    asyncio.run(HGHttpServiceMonitor(target=target_test['target'], interval=int(target_test['interval']), port=target_test['port'],
+    asyncio.run(HGHttpServiceMonitor(target=target_test['target'], interval=int(target_test['interval']),
+                                     port=target_test['port'],
                                      service=target_test['service']).get_target())
