@@ -98,8 +98,9 @@ class HGServiceMonitor:
         self.logger.info("HGServiceMonitor configuration file import finished")
 
     async def add_monitor_targets(self, targets_config=None):
-
+        self.logger.debug([ item for item in self.configuration_parser.items()])
         for host in self.configuration_parser.sections():
+
             building_targets = {"target": host}
             for key, value in self.configuration_parser[host].items():
                 if key in ["alert"]:
@@ -156,19 +157,6 @@ class HGServiceMonitor:
                 # need to sort through errors
                 print(res)
                 break
-
-        # while self.enabled_targets:
-        #     for coro in asyncio.as_completed(service_dispatcher):
-        #         earliest_result= await coro
-        #         print(earliest_result)
-
-    # async def remove_monitor_target(self):
-    #     loop_count = 1
-    #     while self.enabled_targets:
-    #         random_sleep = random.randint(1, 5)
-    #         self.logger.info(f"HGServiceMonitor is online and removing {loop_count} target(s).")
-    #         await asyncio.sleep(random_sleep)
-    #         loop_count += random.randint(1, 5)
 
     async def close_monitor_target(self):
         pass
