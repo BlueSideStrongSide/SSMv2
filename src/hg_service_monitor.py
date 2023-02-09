@@ -68,8 +68,8 @@ class HGServiceMonitor:
             Path(requested_log_file.parent).mkdir(parents=True)
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
 
-        # provide option to set console loggin from configuration file
-        console_h.setLevel(logging.DEBUG)
+        # provide option to set console logging from configuration file
+        console_h.setLevel(logging.INFO)
         file_h.setLevel(logging.DEBUG)
 
         # create formatter
@@ -98,12 +98,12 @@ class HGServiceMonitor:
         self.logger.info("HGServiceMonitor configuration file import finished")
 
     async def add_monitor_targets(self, targets_config=None):
-        self.logger.debug([ item for item in self.configuration_parser.items()])
+        self.logger.debug([item for item in self.configuration_parser.items()])
         for host in self.configuration_parser.sections():
 
             building_targets = {"target": host}
             for key, value in self.configuration_parser[host].items():
-                if key in ["alert"]:
+                if key in ["alert", "ms_check"]:
                     if value.lower() == "true":
                         value = True
                     else:
