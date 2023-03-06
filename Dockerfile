@@ -3,9 +3,9 @@
 FROM python:3
 
 COPY sample_script.py .
+COPY requirements.txt .
 COPY config/ /config/
 COPY src/ /src/
-COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 WORKDIR /
-CMD ["python", "./sample_script.py"]
+ENTRYPOINT ["python", "./sample_script.py"]
