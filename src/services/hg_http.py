@@ -49,9 +49,8 @@ class HGHttpServiceMonitor:
         self._http_results_fail_tracker = []
         self._results_tracker = _results_tracker  # <-- Class result to implement later
 
-        self.pushover_notifier = push_notify()
-
         self._internal_logger.debug(self.__class__)
+        self.pushover_notifier = push_notify()
 
     @property
     def format_url(self, wan_monitor: str = "https://api.ipify.org"):
@@ -132,6 +131,7 @@ class HGHttpServiceMonitor:
                 _internal_count += 1  # <-- decide if we want to keep this currently not used
 
                 self._internal_logger.debug(f'Starting interval sleep for {self.format_url}')
+
                 for i in range(1, int(self._interval)):
                     await asyncio.sleep(1)
 

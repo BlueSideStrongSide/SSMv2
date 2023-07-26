@@ -1,8 +1,7 @@
 # SSMv2
 Simple Service Monitor
 
--Staging code as I develop...
-
+- Staging code as I develop...
 
 Step 1. Clone Repo using git clone
 
