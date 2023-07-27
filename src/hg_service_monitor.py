@@ -12,7 +12,8 @@ class HGServiceMonitor:
 
     def __init__(self,
                  targets_config: str = "config/targets/targets.ini",
-                 output_log: str = "src/logs/hg_logmonitor.log",
+                 output_log: str = "/logs/hg_logmonitor.log",
+                 web_tail_logs=True,
                  notify_status: bool = True):
         """
 
@@ -34,6 +35,9 @@ class HGServiceMonitor:
         self.targets_config_file = targets_config  # <-- make cross platform ready
         self.output_log = output_log
         self.configuration_parser = configparser.ConfigParser(strict=False)
+
+    def server_local_log_web(self):
+        ...
 
     def enable_service_monitor(self):
         # start async main loop
@@ -66,7 +70,7 @@ class HGServiceMonitor:
         requested_log_file = Path(self.output_log)
 
         if not requested_log_file.is_file():
-            Path(requested_log_file.parent).mkdir(parents=True)
+            Path(requested_log_file.parent).mkdir(parents=True, exist_ok=True)
 
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
 
