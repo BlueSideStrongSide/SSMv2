@@ -12,7 +12,8 @@ class HGServiceMonitor:
 
     def __init__(self,
                  targets_config: str = "config/targets/targets.ini",
-                 output_log: str = "src/logs/hg_logmonitor.log",
+                 output_log: str = "/logs/hg_logmonitor.log",
+                 web_tail_logs=True,
                  notify_status: bool = True):
         """
 
@@ -35,6 +36,9 @@ class HGServiceMonitor:
         self.output_log = output_log
         self.configuration_parser = configparser.ConfigParser(strict=False)
 
+    def server_local_log_web(self):
+        ...
+
     def enable_service_monitor(self):
         # start async main loop
         asyncio.run(self.async_monitor_startup())
@@ -52,7 +56,7 @@ class HGServiceMonitor:
         await self._monitor_target()
 
     async def failed_startup(self, fail_reason=None):
-        self.logger.debug("An error occured during startup the program will now exit")
+        self.logger.debug("An error occurred during startup the program will now exit")
         print(fail_reason)
         exit()
 
@@ -64,11 +68,12 @@ class HGServiceMonitor:
         console_h = logging.StreamHandler()
 
         requested_log_file = Path(self.output_log)
+
         if not requested_log_file.is_file():
-            Path(requested_log_file.parent).mkdir(parents=True)
+            Path(requested_log_file.parent).mkdir(parents=True, exist_ok=True)
+
         file_h = logging.FileHandler(filename=self.output_log, mode="a+", encoding="utf8")
 
-        # provide option to set console logging from configuration file
         console_h.setLevel(logging.INFO)
         file_h.setLevel(logging.DEBUG)
 
