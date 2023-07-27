@@ -12,7 +12,7 @@ Step 3. Review config options and add new targets `config/targets/targets.ini`
 
 Run With Python --> `pip install -r requirements.txt` --> `python sample_script.py`
 
-Run With Docker --> `docker build -t ssmv2 .` --> `docker run --restart unless-stopped`
+Run With Docker --> `docker build -t ssmv2 .` --> `docker run -t smmv2 --restart unless-stopped`
 
 ### Notifiers
 
