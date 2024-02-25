@@ -109,10 +109,12 @@ class HGServiceMonitor:
             building_targets = {"target": host}
             for key, value in self.configuration_parser[host].items():
                 if key in ["alert", "ms_check"]:
+                    
                     if value.lower() == "true":
                         value = True
                     else:
                         value = False
+                        
                 building_targets[key] = value
 
             self.enabled_targets.append(building_targets)

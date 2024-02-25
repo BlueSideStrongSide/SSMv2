@@ -41,5 +41,5 @@ class PushOver:
 
 
 if __name__ == '__main__':
-    test = PUSHOVER()
+    test = PushOver()
     asyncio.get_event_loop().run_until_complete(test.send_alert())
