@@ -55,6 +55,57 @@ A table of the currently supported notifiers is shown below. Generate the approp
 - **Log File:** Specify the full path to the output log file using the output_log parameter in the constructor. The default path is /logs/hg_logmonitor.log.
 - **Notification Status:** Control whether notifications are sent during startup by setting the notify_status parameter in the constructor.
 
+# Configuration Definitions
+
+## Target Specification
+- **[IP|Hostname]:** Corresponds to the target server, ignored if using LOCAL_WAN service.
+
+## Monitoring Settings
+- **SERVICE:** Supported services for monitoring (HTTP|HTTPS|ICMP|WAN).
+- **MS_CHECK:** Check for latency/duration values.
+- **MS_VALUE:** Value of latency to compare the response.
+- **MS_CALC:** Calculation method (AVG|GT|LT).
+- **INTERVAL:** Time between requests to the target.
+- **ALERT:** Send alerts to the specified service.
+- **ALERT_SERVICE:** Supported services for alerts (e.g., Pushover).
+- **FAILURE_COUNT:** Number of failures before triggering an alert.
+- **EXPECTED_RESPONSE_TEXT:** Compare the text response for HTTP|HTTPS|WAN services.
+- **ALERT_THROTTLE:** Currently not implemented.
+- **EXPECTED_STATUS_CODE:** Currently not implemented.
+
+### Example Configuration:
+
+```ini
+[LOCAL_WAN]
+SERVICE = WAN
+INTERVAL = 5
+ALERT = TRUE
+EXPECTED_STATUS_CODE = 200
+EXPECTED_RESPONSE_TEXT = WAN_IP_HERE
+ALERT_SERVICE = PUSHOVER
+FAILURE_COUNT = 5
+
+[192.168.1.1]
+SERVICE = HTTPS
+MS_CHECK = TRUE
+MS_VALUE = 100
+MS_CALC = AVG
+INTERVAL = 5
+ALERT = FALSE
+ALERT_SERVICE = PUSHOVER
+FAILURE_COUNT = 10
+
+[google.org]
+SERVICE = HTTPS
+MS_CHECK = TRUE
+MS_VALUE = 800
+MS_CALC = AVG
+INTERVAL = 60
+ALERT = TRUE
+EXPECTED_STATUS_CODE = 200
+ALERT_SERVICE = PUSHOVER
+FAILURE_COUNT = 3
+```
 ### Usage
 
 ```python
