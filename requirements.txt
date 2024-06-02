@@ -2,3 +2,4 @@ aiohttp==3.8.3
 aiosignal==1.2.0
 async-timeout==4.0.2
 icmplib==3.0.3
+fastapi==0.111.0

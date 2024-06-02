@@ -1,6 +1,6 @@
 
 
-class HGResultHandler():
+class HGResultHandler:
 
      def __init__(self):
          self.results = []
